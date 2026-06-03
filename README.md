@@ -20,6 +20,11 @@ gdep add https://github.com/ramokz/phantom-camera --tag v0.8
 gdep add https://github.com/nathanhoad/godot_dialogue_manager --commit b8e5ec9
 gdep add https://github.com/bitwes/Gut --branch main
 gdep install
+
+# Multiple subdirs from one repo — --name is required when the URL repeats
+gdep add https://github.com/foxssake/netfox --name netfox        --tag v1.35.3 --subdir addons/netfox
+gdep add https://github.com/foxssake/netfox --name netfox-extras --tag v1.35.3 --subdir addons/netfox.extras
+gdep add https://github.com/foxssake/netfox --name netfox-noray  --tag v1.35.3 --subdir addons/netfox.noray
 ```
 
 Commit `gdep.toml` and `gdep.lock`. See [.gitignore](#gitignore) below for how to exclude managed addons.
