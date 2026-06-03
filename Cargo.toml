@@ -12,12 +12,12 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-dirs = "5"
-git2 = { version = "0.19", default-features = false, features = ["https"] }
-indicatif = "0.17"
+dirs = "6"
+git2 = { version = "0.21", default-features = false, features = ["https"] }
+indicatif = "0.18"
 serde = { version = "1", features = ["derive"] }
-thiserror = "1"
-toml = "0.8"
+thiserror = "2"
+toml = "1"
 
 [profile.release]
 strip = true
