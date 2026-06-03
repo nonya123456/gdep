@@ -106,10 +106,13 @@ fn resolve_ref(name: &str, repo: &Repository, entry: &AddonEntry) -> Result<Stri
             })?
             .id()
     } else if let Some(commit) = &entry.commit {
-        git2::Oid::from_str(commit).map_err(|_| GdepError::RefNotResolved {
-            addon: name.to_string(),
-            ref_: commit.clone(),
-        })?
+        repo.revparse_single(commit)
+            .and_then(|obj| obj.peel_to_commit())
+            .map(|c| c.id())
+            .map_err(|_| GdepError::RefNotResolved {
+                addon: name.to_string(),
+                ref_: commit.clone(),
+            })?
     } else {
         return Err(GdepError::NoRef(name.to_string()));
     };
