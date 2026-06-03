@@ -14,7 +14,7 @@ cargo install --path .
 ```bash
 # In your Godot project root:
 gdep init
-gdep add https://github.com/ramokz/phantom-camera --tag v0.8
+gdep add https://github.com/ramokz/phantom-camera --tag v0.8 --subdir addons/phantom_camera
 gdep add https://github.com/nathanhoad/godot_dialogue_manager --commit a3f9c12 --subdir addons/dialogue_manager
 gdep add https://github.com/bitwes/Gut --branch main
 gdep install
@@ -28,6 +28,7 @@ Commit `gdep.toml` and `gdep.lock`. Add `addons/` to `.gitignore`.
 [addons.phantom-camera]
 git = "https://github.com/ramokz/phantom-camera"
 tag = "v0.8"
+subdirectory = "addons/phantom_camera"
 
 [addons.dialogue-manager]
 git = "https://github.com/nathanhoad/godot_dialogue_manager"
