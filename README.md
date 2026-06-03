@@ -57,13 +57,9 @@ commit = "b8e5ec9"
 [addons.gut]
 git = "https://github.com/bitwes/Gut"
 branch = "main"
-```
 
-### Pulling multiple subdirectories from one repo
-
-Some repos (e.g. [netfox](https://github.com/foxssake/netfox)) ship several independent addons under a single `addons/` tree. Use `subdirectory` with multiple entries pointing at the same `git` URL — gdep bare-clones the repo once and reuses the cache for each entry:
-
-```toml
+# Some repos ship multiple independent addons in one repo (e.g. netfox).
+# Use subdirectory + multiple entries — gdep clones the repo once and reuses the cache.
 [addons.netfox]
 git = "https://github.com/foxssake/netfox"
 tag = "v1.35.3"
@@ -80,10 +76,10 @@ tag = "v1.35.3"
 subdirectory = "addons/netfox.noray"
 ```
 
-Or via the CLI (the `--name` flag is required since all three share the same URL):
+The equivalent CLI commands (`--name` is required when multiple entries share the same URL):
 
 ```bash
-gdep add https://github.com/foxssake/netfox --name netfox       --tag v1.35.3 --subdir addons/netfox
+gdep add https://github.com/foxssake/netfox --name netfox        --tag v1.35.3 --subdir addons/netfox
 gdep add https://github.com/foxssake/netfox --name netfox-extras --tag v1.35.3 --subdir addons/netfox.extras
 gdep add https://github.com/foxssake/netfox --name netfox-noray  --tag v1.35.3 --subdir addons/netfox.noray
 ```
