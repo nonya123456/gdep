@@ -41,7 +41,9 @@ struct Lockfile {
 #[derive(Serialize, Deserialize, Clone)]
 struct LockedAddon {
     url: String,
-    commit: String,
+    #[serde(default)]
+    rev: String,    // original tag/branch/commit from manifest
+    commit: String, // resolved full SHA
     subdir: String,
 }
 
@@ -92,21 +94,21 @@ fn install() -> Result<()> {
         let spec = &manifest.addons[name];
         let subdir = spec.subdir.as_deref().unwrap();
         let addon_dir = PathBuf::from("addons").join(name);
-        let marker_path = addon_dir.join(".gdep");
 
-        let lock_sha = lockfile.addons.get(name).map(|l| l.commit.clone());
-        let marker_sha = if marker_path.exists() {
-            fs::read_to_string(&marker_path)
-                .ok()
-                .map(|s| s.trim().to_string())
-        } else {
-            None
-        };
+        let manifest_rev = spec
+            .tag
+            .as_deref()
+            .or(spec.branch.as_deref())
+            .or(spec.commit.as_deref())
+            .unwrap();
 
-        // Fast path: already installed at locked version — no network needed
-        if let (Some(lock), Some(marker)) = (&lock_sha, &marker_sha)
-            && lock == marker
-        {
+        // Lockfile entry is valid only if url, subdir, and ref all match the manifest
+        let locked = lockfile.addons.get(name).filter(|l| {
+            l.url == spec.url && l.subdir == subdir && l.rev == manifest_rev
+        });
+
+        // Fast path: manifest unchanged and addon directory exists — no network needed
+        if locked.is_some() && addon_dir.exists() {
             println!("{name}: up to date");
             continue;
         }
@@ -114,8 +116,8 @@ fn install() -> Result<()> {
         let repo_dir = cache_dir.join(url_to_key(&spec.url));
         let repo = open_or_clone(&spec.url, &repo_dir)?;
 
-        let sha = if let Some(locked) = lock_sha {
-            locked
+        let sha = if let Some(locked) = locked {
+            locked.commit.clone()
         } else {
             resolve_ref(
                 &repo,
@@ -126,39 +128,52 @@ fn install() -> Result<()> {
             )?
         };
 
-        if marker_sha.as_deref() == Some(sha.as_str()) {
-            println!("{name}: up to date");
-        } else {
-            print!("{name}: installing... ");
-            if addon_dir.exists() {
-                fs::remove_dir_all(&addon_dir)?;
-            }
-            fs::create_dir_all(&addon_dir)?;
-
-            let commit = repo
-                .find_commit(git2::Oid::from_str(&sha)?)
-                .with_context(|| format!("commit {sha} not found in {}", spec.url))?;
-            let tree = commit.tree()?;
-            let subtree_entry = tree
-                .get_path(Path::new(subdir))
-                .with_context(|| format!("subdir '{subdir}' not found at {sha} in {}", spec.url))?;
-            let subtree = repo
-                .find_tree(subtree_entry.id())
-                .context("subdir is not a directory")?;
-
-            copy_tree(&repo, &subtree, &addon_dir)?;
-            fs::write(&marker_path, &sha)?;
-            println!("done");
+        print!("{name}: installing... ");
+        if addon_dir.exists() {
+            fs::remove_dir_all(&addon_dir)?;
         }
+        fs::create_dir_all(&addon_dir)?;
+
+        let commit = repo
+            .find_commit(git2::Oid::from_str(&sha)?)
+            .with_context(|| format!("commit {sha} not found in {}", spec.url))?;
+        let tree = commit.tree()?;
+        let subtree_entry = tree
+            .get_path(Path::new(subdir))
+            .with_context(|| format!("subdir '{subdir}' not found at {sha} in {}", spec.url))?;
+        let subtree = repo
+            .find_tree(subtree_entry.id())
+            .context("subdir is not a directory")?;
+
+        copy_tree(&repo, &subtree, &addon_dir)?;
+        println!("done");
 
         lockfile.addons.insert(
             name.clone(),
             LockedAddon {
                 url: spec.url.clone(),
+                rev: manifest_rev.to_string(),
                 commit: sha,
                 subdir: subdir.to_string(),
             },
         );
+    }
+
+    // Remove addons that are no longer in the manifest
+    let to_remove: Vec<String> = lockfile
+        .addons
+        .keys()
+        .filter(|name| !manifest.addons.contains_key(*name))
+        .cloned()
+        .collect();
+
+    for name in to_remove {
+        let addon_dir = PathBuf::from("addons").join(&name);
+        if addon_dir.exists() {
+            fs::remove_dir_all(&addon_dir)?;
+            println!("{name}: removed");
+        }
+        lockfile.addons.remove(&name);
     }
 
     fs::write("gdep.lock", toml::to_string_pretty(&lockfile)?)?;
