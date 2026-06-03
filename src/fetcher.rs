@@ -58,6 +58,9 @@ fn clone_bare(url: &str, dest: &std::path::Path, name: &str) -> Result<Repositor
         .fetch_options(opts)
         .clone(url, dest)?;
     pb.finish_with_message("done");
+    // RepoBuilder only fetches the default branch; fetch all refs so
+    // commit-pinned addons on non-default branches are reachable.
+    fetch_all(&repo, url, name)?;
     Ok(repo)
 }
 
