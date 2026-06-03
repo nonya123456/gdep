@@ -24,23 +24,6 @@ gdep install
 
 Commit `gdep.toml` and `gdep.lock`. See [.gitignore](#gitignore) below for how to exclude managed addons.
 
-### Subdirectory example — netfox
-
-Use `--subdir` to pull only a specific path from a repo:
-
-```bash
-gdep add https://github.com/foxssake/netfox --tag v1.35.3 --subdir addons/netfox
-```
-
-The manifest entry looks like:
-
-```toml
-[addons.netfox]
-git = "https://github.com/foxssake/netfox"
-tag = "v1.35.3"
-subdirectory = "addons/netfox"
-```
-
 ## .gitignore
 
 Add this to your Godot project's `.gitignore` to exclude all gdep-managed addons while committing `gdep.toml` and `gdep.lock`:
