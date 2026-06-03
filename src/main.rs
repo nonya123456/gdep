@@ -3,6 +3,7 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -75,7 +76,11 @@ fn install() -> Result<()> {
         }
     }
 
-    let lock_str = fs::read_to_string("gdep.lock").unwrap_or_default();
+    let lock_str = match fs::read_to_string("gdep.lock") {
+        Ok(s) => s,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(e).context("failed to read gdep.lock"),
+    };
     let mut lockfile: Lockfile = if lock_str.is_empty() {
         Lockfile::default()
     } else {
@@ -107,18 +112,24 @@ fn install() -> Result<()> {
             l.url == spec.url && l.subdir == subdir && l.rev == manifest_rev
         });
 
-        // Fast path: manifest unchanged and addon directory exists — no network needed
-        if locked.is_some() && addon_dir.exists() {
+        // Fast path: manifest unchanged and addon directory has files — no network needed
+        if locked.is_some() && dir_is_populated(&addon_dir) {
             println!("{name}: up to date");
             continue;
         }
 
         let repo_dir = cache_dir.join(url_to_key(&spec.url));
-        let repo = open_or_clone(&spec.url, &repo_dir)?;
+        let repo = clone_or_open(&spec.url, &repo_dir)?;
 
         let sha = if let Some(locked) = locked {
-            locked.commit.clone()
+            let sha = locked.commit.clone();
+            // Only fetch if the pinned SHA is not already in the local cache
+            if repo.find_commit(git2::Oid::from_str(&sha)?).is_err() {
+                fetch_all(&repo, &spec.url)?;
+            }
+            sha
         } else {
+            fetch_all(&repo, &spec.url)?;
             resolve_ref(
                 &repo,
                 &spec.url,
@@ -157,6 +168,8 @@ fn install() -> Result<()> {
                 subdir: subdir.to_string(),
             },
         );
+        // Write after each success so a partial run doesn't force re-fetching on the next run
+        fs::write("gdep.lock", toml::to_string_pretty(&lockfile)?)?;
     }
 
     // Remove addons that are no longer in the manifest
@@ -181,31 +194,38 @@ fn install() -> Result<()> {
     Ok(())
 }
 
+// Percent-encode non-safe characters so different URLs always produce different keys.
+// '/', ':', '@', etc. all encode to distinct %XX sequences — no collisions.
 fn url_to_key(url: &str) -> String {
-    url.chars()
-        .map(|c| match c {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' => c,
-            _ => '_',
-        })
-        .collect()
+    let mut out = String::with_capacity(url.len() * 3);
+    for b in url.bytes() {
+        match b {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' => {
+                out.push(b as char);
+            }
+            _ => {
+                out.push('%');
+                out.push(char::from_digit((b >> 4) as u32, 16).unwrap());
+                out.push(char::from_digit((b & 0xf) as u32, 16).unwrap());
+            }
+        }
+    }
+    out
 }
 
-fn open_or_clone(url: &str, repo_dir: &Path) -> Result<git2::Repository> {
+// A directory is "populated" if it exists and contains at least one entry.
+// Checking this instead of just exists() prevents a false "up to date" when
+// the user deleted the directory contents but left the directory itself.
+fn dir_is_populated(dir: &Path) -> bool {
+    dir.read_dir().is_ok_and(|mut d| d.next().is_some())
+}
+
+// Opens an existing bare clone or creates a new one. Does NOT fetch — call
+// fetch_all separately when you need the latest refs.
+fn clone_or_open(url: &str, repo_dir: &Path) -> Result<git2::Repository> {
     if repo_dir.exists() {
-        let repo = git2::Repository::open_bare(repo_dir)
-            .with_context(|| format!("failed to open cache for {url}"))?;
-        let mut remote = repo
-            .find_remote("origin")
-            .context("cache missing origin remote")?;
-        remote
-            .fetch(
-                &["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"],
-                None,
-                None,
-            )
-            .with_context(|| format!("failed to fetch {url}"))?;
-        drop(remote);
-        Ok(repo)
+        git2::Repository::open_bare(repo_dir)
+            .with_context(|| format!("failed to open cache for {url}"))
     } else {
         println!("cloning {url}");
         git2::build::RepoBuilder::new()
@@ -213,6 +233,20 @@ fn open_or_clone(url: &str, repo_dir: &Path) -> Result<git2::Repository> {
             .clone(url, repo_dir)
             .with_context(|| format!("failed to clone {url}"))
     }
+}
+
+fn fetch_all(repo: &git2::Repository, url: &str) -> Result<()> {
+    let mut remote = repo
+        .find_remote("origin")
+        .context("cache missing origin remote")?;
+    remote
+        .fetch(
+            &["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"],
+            None,
+            None,
+        )
+        .with_context(|| format!("failed to fetch {url}"))?;
+    Ok(())
 }
 
 fn resolve_ref(
@@ -263,7 +297,10 @@ fn copy_tree(repo: &git2::Repository, tree: &git2::Tree, dest: &Path) -> Result<
                     }
                 }
             }
-            _ => {}
+            Some(kind) => {
+                eprintln!("warning: skipping '{name}' ({kind:?}) — only regular files and directories are supported");
+            }
+            None => {}
         }
     }
     Ok(())
