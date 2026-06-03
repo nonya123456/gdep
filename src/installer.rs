@@ -32,7 +32,7 @@ pub fn install_addon(addon: &LockedAddon, project_dir: &Path) -> Result<(), Gdep
         // Copy each entry individually to avoid wiping sibling addons.
         for i in 0..addons_tree.len() {
             let e = addons_tree.get(i).expect("index in bounds");
-            if let (Some(name), Some(git2::ObjectType::Tree)) = (e.name(), e.kind()) {
+            if let (Ok(name), Some(git2::ObjectType::Tree)) = (e.name(), e.kind()) {
                 write_tree(&repo, &repo.find_tree(e.id())?, &base.join(name))?;
             }
         }
@@ -72,8 +72,8 @@ fn write_tree(repo: &Repository, tree: &Tree, dest: &Path) -> Result<(), GdepErr
             return TreeWalkResult::Abort;
         }
         let name = match entry.name() {
-            Some(n) => n,
-            None => return TreeWalkResult::Skip,
+            Ok(n) => n,
+            Err(_) => return TreeWalkResult::Skip,
         };
         let rel: PathBuf = if root.is_empty() {
             PathBuf::from(name)
@@ -138,7 +138,7 @@ fn addon_dirs_in_cache(addon: &LockedAddon) -> Result<Option<Vec<String>>, GdepE
     let dirs: Vec<String> = (0..addons_tree.len())
         .filter_map(|i| addons_tree.get(i))
         .filter(|e| matches!(e.kind(), Some(git2::ObjectType::Tree)))
-        .filter_map(|e| e.name().map(String::from))
+        .filter_map(|e| e.name().ok().map(String::from))
         .collect();
 
     Ok(if dirs.is_empty() { None } else { Some(dirs) })
