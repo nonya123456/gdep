@@ -1,0 +1,24 @@
+[package]
+name = "gdep"
+version = "0.1.0"
+edition = "2021"
+description = "Godot dependency manager — fetches addons from git repos"
+license = "MIT"
+
+[[bin]]
+name = "gdep"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+dirs = "5"
+git2 = { version = "0.19", default-features = false, features = ["https"] }
+indicatif = "0.17"
+serde = { version = "1", features = ["derive"] }
+thiserror = "1"
+toml = "0.8"
+
+[profile.release]
+strip = true
+opt-level = 3
