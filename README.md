@@ -1,6 +1,6 @@
 # gdep — Godot Dependency Manager
 
-> Vibe coded.
+> ⚠️ Vibe coded. Use at your own risk.
 
 A Cargo/go-mod-style addon manager for Godot projects.  
 Fetches addons directly from git repos so you never commit third-party addons to your game repo.
