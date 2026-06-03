@@ -16,7 +16,7 @@ cargo install --path .
 gdep init
 gdep add https://github.com/ramokz/phantom-camera --tag v0.8 --subdir addons/phantom_camera
 gdep add https://github.com/nathanhoad/godot_dialogue_manager --commit a3f9c12 --subdir addons/dialogue_manager
-gdep add https://github.com/bitwes/Gut --branch main
+gdep add https://github.com/bitwes/Gut --branch main --subdir addons/gut
 gdep install
 ```
 
@@ -38,6 +38,7 @@ subdirectory = "addons/dialogue_manager"
 [addons.gut]
 git = "https://github.com/bitwes/Gut"
 branch = "main"
+subdirectory = "addons/gut"
 ```
 
 ## Commands
