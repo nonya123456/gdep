@@ -195,10 +195,18 @@ fn cmd_remove(dir: &PathBuf, name: &str) -> Result<()> {
     manifest.save(dir).context("save manifest")?;
 
     let mut lock = Lockfile::load(dir).unwrap_or_default();
+    let locked = lock.find(name).cloned();
     lock.remove(name);
     lock.save(dir).context("save lockfile")?;
 
-    installer::remove_addon(name, dir)?;
+    if let Some(locked) = locked {
+        installer::remove_addon(&locked, dir)?;
+    } else {
+        let dest = dir.join("addons").join(name);
+        if dest.exists() {
+            std::fs::remove_dir_all(&dest)?;
+        }
+    }
     println!("Removed '{name}'.");
     Ok(())
 }

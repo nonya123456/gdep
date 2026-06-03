@@ -14,9 +14,9 @@ cargo install --path .
 ```bash
 # In your Godot project root:
 gdep init
-gdep add https://github.com/ramokz/phantom-camera --tag v0.8 --subdir addons/phantom_camera
-gdep add https://github.com/nathanhoad/godot_dialogue_manager --commit a3f9c12 --subdir addons/dialogue_manager
-gdep add https://github.com/bitwes/Gut --branch main --subdir addons/gut
+gdep add https://github.com/ramokz/phantom-camera --tag v0.8
+gdep add https://github.com/nathanhoad/godot_dialogue_manager --commit a3f9c12
+gdep add https://github.com/bitwes/Gut --branch main
 gdep install
 ```
 
@@ -28,17 +28,14 @@ Commit `gdep.toml` and `gdep.lock`. Add `addons/` to `.gitignore`.
 [addons.phantom-camera]
 git = "https://github.com/ramokz/phantom-camera"
 tag = "v0.8"
-subdirectory = "addons/phantom_camera"
 
 [addons.dialogue-manager]
 git = "https://github.com/nathanhoad/godot_dialogue_manager"
 commit = "a3f9c12"
-subdirectory = "addons/dialogue_manager"
 
 [addons.gut]
 git = "https://github.com/bitwes/Gut"
 branch = "main"
-subdirectory = "addons/gut"
 ```
 
 ## Commands
@@ -57,7 +54,10 @@ subdirectory = "addons/gut"
 1. `gdep.toml` lists addons with their git source and a ref (tag, branch, or commit).
 2. On `gdep install`, tags and branches are resolved to concrete commit SHAs and written to `gdep.lock`.
 3. Repos are cached as bare clones under `~/.cache/gdep/` — reinstalls are fully offline if the cache is warm.
-4. The pinned commit is checked out and copied into `project/addons/<name>/`. If the addon lives in a subdirectory of the repo, only that subtree is copied.
+4. Files are copied into `project/addons/` using the following strategy (same as gd-plug):
+   - If the repo contains an `addons/` directory, its contents are copied directly into `project/addons/` — so `repo/addons/gut/` lands at `project/addons/gut/`. No `subdirectory` needed for standard Godot addon repos.
+   - If `subdirectory` is set, that specific path is copied to `project/addons/<name>/`.
+   - If neither applies, the repo root is copied to `project/addons/<name>/`.
 
 ## Crates used
 
