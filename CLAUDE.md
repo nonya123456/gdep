@@ -29,6 +29,6 @@ gdep.toml  →  resolve refs (fetcher)  →  gdep.lock  →  extract files (inst
 
 - **Bare-clone cache** (`cache.rs`): repos are stored at `~/.cache/gdep/<djb2-url-hash>/` as bare clones. The hash is computed in `url_hash()`. No working tree is ever created.
 - **Lockfile semantics** (`lockfile.rs`): tag/commit entries are frozen — `install` only re-fetches on cache miss. Branch entries are also frozen after first install; `gdep update` is the only way to advance them.
-- **Install strategy** (`installer.rs`): mirrors gd-plug's default behavior — if the repo has an `addons/` directory, its contents are copied directly into `project/addons/` (e.g. `repo/addons/gut/` → `project/addons/gut/`). If `subdirectory` is set in the manifest, that subtree goes to `project/addons/<name>/`. If neither applies, the repo root goes to `project/addons/<name>/`.
+- **Install strategy** (`installer.rs`): if the repo has an `addons/` directory, its contents are copied directly into `project/addons/` (e.g. `repo/addons/gut/` → `project/addons/gut/`). If `subdirectory` is set in the manifest, that subtree goes to `project/addons/<name>/`. If neither applies, the repo root goes to `project/addons/<name>/`.
 - **Tag resolution** (`fetcher.rs`): `peel_to_commit` is used so annotated tags resolve to their underlying commit SHA, ensuring lockfile stability even if a tag is force-pushed.
 - **Error propagation**: `GdepError` (`error.rs`) is used within library code via `thiserror`; `anyhow` is used only in `main.rs` for top-level propagation.

@@ -22,7 +22,43 @@ gdep add https://github.com/bitwes/Gut --branch main
 gdep install
 ```
 
-Commit `gdep.toml` and `gdep.lock`. Add `addons/` to `.gitignore`.
+Commit `gdep.toml` and `gdep.lock`. See [.gitignore](#gitignore) below for how to exclude managed addons.
+
+### Subdirectory example — netfox
+
+[netfox](https://github.com/foxssake/netfox) ships several addons in one repo (`netfox`, `netfox.noray`, `netfox.extras`, `netfox.internals`). Use `--subdir` to pull only the core package:
+
+```bash
+gdep add https://github.com/foxssake/netfox --tag v1.35.3 --subdir addons/netfox
+```
+
+This copies `addons/netfox/` from the repo into your `project/addons/netfox/`, leaving the other packages behind. The manifest entry looks like:
+
+```toml
+[addons.netfox]
+git = "https://github.com/foxssake/netfox"
+tag = "v1.35.3"
+subdirectory = "addons/netfox"
+```
+
+## .gitignore
+
+Add this to your Godot project's `.gitignore` to exclude all gdep-managed addons while committing `gdep.toml` and `gdep.lock`:
+
+```gitignore
+# Ignore all managed addons — gdep restores them from gdep.lock
+addons/*
+```
+
+If you maintain one of your own addons directly in the repo, use a `!` exception. Note that `addons/*` must be used instead of `addons/` — git won't descend into a fully-ignored directory, so exceptions inside it silently have no effect:
+
+```gitignore
+# Ignore all managed addons
+addons/*
+
+# Keep your own in-repo addon tracked
+!addons/my-own-addon/
+```
 
 ## Manifest — `gdep.toml`
 
@@ -56,7 +92,7 @@ branch = "main"
 1. `gdep.toml` lists addons with their git source and a ref (tag, branch, or commit).
 2. On `gdep install`, tags and branches are resolved to concrete commit SHAs and written to `gdep.lock`.
 3. Repos are cached as bare clones under `~/.cache/gdep/` — reinstalls are fully offline if the cache is warm.
-4. Files are copied into `project/addons/` using the following strategy (same as gd-plug):
+4. Files are copied into `project/addons/` using the following strategy:
    - If the repo contains an `addons/` directory, its contents are copied directly into `project/addons/` — so `repo/addons/gut/` lands at `project/addons/gut/`. No `subdirectory` needed for standard Godot addon repos.
    - If `subdirectory` is set, that specific path is copied to `project/addons/<name>/`.
    - If neither applies, the repo root is copied to `project/addons/<name>/`.
