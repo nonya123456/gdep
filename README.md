@@ -97,6 +97,17 @@ branch = "main"
    - If `subdirectory` is set, that specific path is copied to `project/addons/<name>/`.
    - If neither applies, the repo root is copied to `project/addons/<name>/`.
 
+## Development
+
+```bash
+cargo build          # debug build
+cargo test           # run all 23 tests (no network required)
+cargo clippy         # lint — must be clean
+cargo fmt            # format before committing
+```
+
+Tests use `git2` to build synthetic repos in temporary directories — no network, no fixture files. The bare-clone cache is redirected to a `TempDir` per test via the `GDEP_CACHE_DIR` env var, so `~/.cache/gdep/` is never touched during testing.
+
 ## Crates used
 
 | Crate | Purpose |
@@ -107,3 +118,4 @@ branch = "main"
 | `dirs` | Cross-platform `~/.cache/gdep` |
 | `indicatif` | Progress bars during fetch |
 | `thiserror` / `anyhow` | Typed + propagated errors |
+| `tempfile` (dev) | Temporary directories in tests |
