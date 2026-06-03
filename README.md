@@ -26,13 +26,13 @@ Commit `gdep.toml` and `gdep.lock`. See [.gitignore](#gitignore) below for how t
 
 ### Subdirectory example — netfox
 
-[netfox](https://github.com/foxssake/netfox) ships several addons in one repo (`netfox`, `netfox.noray`, `netfox.extras`, `netfox.internals`). Use `--subdir` to pull only the core package:
+Use `--subdir` to pull only a specific path from a repo:
 
 ```bash
 gdep add https://github.com/foxssake/netfox --tag v1.35.3 --subdir addons/netfox
 ```
 
-This copies `addons/netfox/` from the repo into your `project/addons/netfox/`, leaving the other packages behind. The manifest entry looks like:
+The manifest entry looks like:
 
 ```toml
 [addons.netfox]
