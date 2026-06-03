@@ -5,6 +5,12 @@ A minimal addon manager for Godot projects. Write a `gdep.toml`, run `gdep insta
 ## Install
 
 ```bash
+cargo install --git https://codeberg.org/desertmouse/gdep --tag v0.1.0
+```
+
+Or from source:
+
+```bash
 cargo install --path .
 ```
 
