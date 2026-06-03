@@ -17,6 +17,23 @@ Run the CLI directly during development:
 cargo run -- <command>       # e.g. cargo run -- init
 ```
 
+## Testing
+
+Tests live inline as `#[cfg(test)]` modules inside each source file. Run with:
+
+```bash
+cargo test                   # run all tests (no network required)
+cargo test cache             # run only cache tests
+cargo test -- --test-threads=1  # serialize tests (needed if env-var races occur)
+```
+
+**Test isolation:** fetcher and installer tests set the `GDEP_CACHE_DIR` env var to a `TempDir` so the bare-clone cache never touches `~/.cache/gdep/`. All tests hold `test_helpers::CACHE_MUTEX` before mutating this env var.
+
+**Synthetic repos:** tests build real git repos in memory using `git2` directly (`Repository::init`, `TreeBuilder`, `blob`, `commit`, `tag_lightweight`). No network, no fixture files. Three helpers in `src/test_helpers.rs`:
+- `make_addons_repo(name, tag)` — repo with `addons/<name>/plugin.gd` (triggers installer strategy 1)
+- `make_root_repo(tag)` — repo with `plugin.gd` at root (triggers installer strategy 3)
+- `make_subdir_repo(subdir, tag)` — repo with `<subdir>/plugin.gd` (for `subdirectory` field testing)
+
 ## Architecture
 
 gdep is a single-binary Rust CLI. The data flow for `gdep install` is:

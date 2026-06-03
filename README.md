@@ -24,23 +24,6 @@ gdep install
 
 Commit `gdep.toml` and `gdep.lock`. See [.gitignore](#gitignore) below for how to exclude managed addons.
 
-### Subdirectory example — netfox
-
-[netfox](https://github.com/foxssake/netfox) ships several addons in one repo (`netfox`, `netfox.noray`, `netfox.extras`, `netfox.internals`). Use `--subdir` to pull only the core package:
-
-```bash
-gdep add https://github.com/foxssake/netfox --tag v1.35.3 --subdir addons/netfox
-```
-
-This copies `addons/netfox/` from the repo into your `project/addons/netfox/`, leaving the other packages behind. The manifest entry looks like:
-
-```toml
-[addons.netfox]
-git = "https://github.com/foxssake/netfox"
-tag = "v1.35.3"
-subdirectory = "addons/netfox"
-```
-
 ## .gitignore
 
 Add this to your Godot project's `.gitignore` to exclude all gdep-managed addons while committing `gdep.toml` and `gdep.lock`:
@@ -97,6 +80,17 @@ branch = "main"
    - If `subdirectory` is set, that specific path is copied to `project/addons/<name>/`.
    - If neither applies, the repo root is copied to `project/addons/<name>/`.
 
+## Development
+
+```bash
+cargo build          # debug build
+cargo test           # run all 23 tests (no network required)
+cargo clippy         # lint — must be clean
+cargo fmt            # format before committing
+```
+
+Tests use `git2` to build synthetic repos in temporary directories — no network, no fixture files. The bare-clone cache is redirected to a `TempDir` per test via the `GDEP_CACHE_DIR` env var, so `~/.cache/gdep/` is never touched during testing.
+
 ## Crates used
 
 | Crate | Purpose |
@@ -107,3 +101,4 @@ branch = "main"
 | `dirs` | Cross-platform `~/.cache/gdep` |
 | `indicatif` | Progress bars during fetch |
 | `thiserror` / `anyhow` | Typed + propagated errors |
+| `tempfile` (dev) | Temporary directories in tests |

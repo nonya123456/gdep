@@ -5,6 +5,8 @@ mod fetcher;
 mod installer;
 mod lockfile;
 mod manifest;
+#[cfg(test)]
+mod test_helpers;
 
 use anyhow::{Context, Result};
 use clap::Parser;
