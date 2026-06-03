@@ -11,7 +11,7 @@ use clap::Parser;
 use cli::{Cli, Commands};
 use lockfile::{LockedAddon, Lockfile};
 use manifest::{AddonEntry, Manifest};
-use std::path::PathBuf;
+use std::path::Path;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -19,9 +19,14 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Init => cmd_init(&project_dir),
-        Commands::Add { url, name, tag, branch, commit, subdir } => {
-            cmd_add(&project_dir, url, name, tag, branch, commit, subdir)
-        }
+        Commands::Add {
+            url,
+            name,
+            tag,
+            branch,
+            commit,
+            subdir,
+        } => cmd_add(&project_dir, url, name, tag, branch, commit, subdir),
         Commands::Install => cmd_install(&project_dir),
         Commands::Update { name } => cmd_update(&project_dir, name.as_deref()),
         Commands::Remove { name } => cmd_remove(&project_dir, &name),
@@ -29,18 +34,14 @@ fn main() -> Result<()> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Commands
-// ---------------------------------------------------------------------------
-
-fn cmd_init(dir: &PathBuf) -> Result<()> {
+fn cmd_init(dir: &Path) -> Result<()> {
     Manifest::init(dir).context("init failed")?;
     println!("Created gdep.toml");
     Ok(())
 }
 
 fn cmd_add(
-    dir: &PathBuf,
+    dir: &Path,
     url: String,
     name: Option<String>,
     tag: Option<String>,
@@ -59,73 +60,67 @@ fn cmd_add(
         );
     }
 
-    let entry = AddonEntry {
-        git: url,
-        tag,
-        branch,
-        commit,
-        subdirectory: subdir,
-    };
-
-    manifest.addons.insert(addon_name.clone(), entry);
+    manifest.addons.insert(
+        addon_name.clone(),
+        AddonEntry {
+            git: url,
+            tag,
+            branch,
+            commit,
+            subdirectory: subdir,
+        },
+    );
     manifest.save(dir).context("save manifest")?;
 
     println!("Added '{addon_name}' to gdep.toml  (run `gdep install` to fetch)");
     Ok(())
 }
 
-fn cmd_install(dir: &PathBuf) -> Result<()> {
+fn cmd_install(dir: &Path) -> Result<()> {
     let manifest = Manifest::load(dir).context("load manifest")?;
-
-    // Load existing lockfile or start fresh.
     let mut lock = Lockfile::load(dir).unwrap_or_default();
 
     for (name, entry) in &manifest.addons {
         print!("  {name} ({}) … ", entry.ref_display());
 
-        // If lockfile already has a pinned commit for a tag/commit entry,
-        // trust it and skip network (unless it's missing from cache).
         let existing = lock.find(name).map(|l| l.commit.clone());
 
         let commit = if entry.branch.is_none() {
             if let Some(ref c) = existing {
-                // Verify cache has it; re-fetch only on cache miss.
                 match fetcher::verify_cached(name, entry, c) {
                     Ok(_) => {
                         println!("cached ({c:.8})");
                         c.clone()
                     }
                     Err(_) => {
-                        let resolved = fetcher::resolve_and_fetch(name, entry)?;
-                        println!("{resolved:.8}");
-                        resolved
+                        let r = fetcher::resolve_and_fetch(name, entry)?;
+                        println!("{r:.8}");
+                        r
                     }
                 }
             } else {
-                let resolved = fetcher::resolve_and_fetch(name, entry)?;
-                println!("{resolved:.8}");
-                resolved
+                let r = fetcher::resolve_and_fetch(name, entry)?;
+                println!("{r:.8}");
+                r
             }
         } else {
-            // Branch-pinned: always fetch, but only update lockfile if
-            // no entry yet (update is done via `gdep update`).
-            if existing.is_none() {
-                let resolved = fetcher::resolve_and_fetch(name, entry)?;
-                println!("{resolved:.8}");
-                resolved
-            } else {
-                let c = existing.unwrap();
+            // Branch-pinned: lock commit on first install; use `gdep update` to advance.
+            if let Some(c) = existing {
                 match fetcher::verify_cached(name, entry, &c) {
                     Ok(_) => {
                         println!("cached ({c:.8})");
-                        c.clone()
+                        c
                     }
                     Err(_) => {
-                        let resolved = fetcher::resolve_and_fetch(name, entry)?;
-                        println!("{resolved:.8}");
-                        resolved
+                        let r = fetcher::resolve_and_fetch(name, entry)?;
+                        println!("{r:.8}");
+                        r
                     }
                 }
+            } else {
+                let r = fetcher::resolve_and_fetch(name, entry)?;
+                println!("{r:.8}");
+                r
             }
         };
 
@@ -136,7 +131,6 @@ fn cmd_install(dir: &PathBuf) -> Result<()> {
             subdirectory: entry.subdirectory.clone(),
         };
         lock.upsert(locked.clone());
-
         installer::install_addon(&locked, dir)?;
     }
 
@@ -145,16 +139,14 @@ fn cmd_install(dir: &PathBuf) -> Result<()> {
     Ok(())
 }
 
-fn cmd_update(dir: &PathBuf, name: Option<&str>) -> Result<()> {
+fn cmd_update(dir: &Path, name: Option<&str>) -> Result<()> {
     let manifest = Manifest::load(dir).context("load manifest")?;
     let mut lock = Lockfile::load(dir).unwrap_or_default();
 
     let targets: Vec<(&String, &AddonEntry)> = manifest
         .addons
         .iter()
-        .filter(|(n, e)| {
-            e.branch.is_some() && name.map_or(true, |target| target == n.as_str())
-        })
+        .filter(|(n, e)| e.branch.is_some() && name.is_none_or(|t| t == n.as_str()))
         .collect();
 
     if targets.is_empty() {
@@ -186,7 +178,7 @@ fn cmd_update(dir: &PathBuf, name: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn cmd_remove(dir: &PathBuf, name: &str) -> Result<()> {
+fn cmd_remove(dir: &Path, name: &str) -> Result<()> {
     let mut manifest = Manifest::load(dir).context("load manifest")?;
     if !manifest.addons.contains_key(name) {
         anyhow::bail!("addon '{name}' not in gdep.toml");
@@ -211,7 +203,7 @@ fn cmd_remove(dir: &PathBuf, name: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_list(dir: &PathBuf) -> Result<()> {
+fn cmd_list(dir: &Path) -> Result<()> {
     let lock = Lockfile::load(dir).context("load lockfile — run `gdep install` first")?;
 
     if lock.addon.is_empty() {
@@ -219,7 +211,7 @@ fn cmd_list(dir: &PathBuf) -> Result<()> {
         return Ok(());
     }
 
-    println!("{:<30} {:<10} {}", "name", "commit", "source");
+    println!("{:<30} {:<10} source", "name", "commit");
     println!("{}", "-".repeat(80));
     for a in &lock.addon {
         let short = &a.commit[..a.commit.len().min(8)];
@@ -227,10 +219,6 @@ fn cmd_list(dir: &PathBuf) -> Result<()> {
     }
     Ok(())
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 fn derive_name(url: &str) -> String {
     url.trim_end_matches('/')

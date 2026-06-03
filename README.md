@@ -1,5 +1,7 @@
 # gdep — Godot Dependency Manager
 
+> Vibe coded with [Claude Code](https://claude.ai/code).
+
 A Cargo/go-mod-style addon manager for Godot projects.  
 Fetches addons directly from git repos so you never commit third-party addons to your game repo.
 

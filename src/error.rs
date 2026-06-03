@@ -14,9 +14,6 @@ pub enum GdepError {
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("addon '{0}' not found in manifest")]
-    AddonNotFound(String),
-
     #[error("could not resolve ref '{ref_}' for addon '{addon}'")]
     RefNotResolved { addon: String, ref_: String },
 

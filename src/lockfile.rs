@@ -21,9 +21,8 @@ pub struct Lockfile {
 impl Lockfile {
     pub fn load(dir: &Path) -> Result<Self, GdepError> {
         let path = dir.join(LOCK_FILE);
-        let text = std::fs::read_to_string(&path).map_err(|e| {
-            GdepError::Lockfile(format!("cannot read {}: {e}", path.display()))
-        })?;
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| GdepError::Lockfile(format!("cannot read {}: {e}", path.display())))?;
         toml::from_str(&text)
             .map_err(|e| GdepError::Lockfile(format!("parse error in {}: {e}", path.display())))
     }
