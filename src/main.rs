@@ -130,11 +130,14 @@ fn cmd_install(dir: &Path) -> Result<()> {
             commit,
             subdirectory: entry.subdirectory.clone(),
         };
-        lock.upsert(locked.clone());
-        installer::install_addon(&locked, dir)?;
+        let install_result = installer::install_addon(&locked, dir);
+        if install_result.is_ok() {
+            lock.upsert(locked);
+        }
+        lock.save(dir).context("save lockfile")?;
+        install_result?;
     }
 
-    lock.save(dir).context("save lockfile")?;
     println!("Done. gdep.lock updated.");
     Ok(())
 }
@@ -169,11 +172,14 @@ fn cmd_update(dir: &Path, name: Option<&str>) -> Result<()> {
             commit,
             subdirectory: entry.subdirectory.clone(),
         };
-        lock.upsert(locked.clone());
-        installer::install_addon(&locked, dir)?;
+        let install_result = installer::install_addon(&locked, dir);
+        if install_result.is_ok() {
+            lock.upsert(locked);
+        }
+        lock.save(dir).context("save lockfile")?;
+        install_result?;
     }
 
-    lock.save(dir).context("save lockfile")?;
     println!("Done. gdep.lock updated.");
     Ok(())
 }
