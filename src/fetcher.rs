@@ -120,6 +120,109 @@ fn resolve_ref(name: &str, repo: &Repository, entry: &AddonEntry) -> Result<Stri
     Ok(oid.to_string())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::manifest::AddonEntry;
+    use crate::test_helpers;
+    use tempfile::tempdir;
+
+    fn entry_tag(url: &str, tag: &str) -> AddonEntry {
+        AddonEntry { git: url.to_string(), tag: Some(tag.into()), branch: None, commit: None, subdirectory: None }
+    }
+
+    fn entry_branch(url: &str, branch: &str) -> AddonEntry {
+        AddonEntry { git: url.to_string(), tag: None, branch: Some(branch.into()), commit: None, subdirectory: None }
+    }
+
+    fn entry_commit(url: &str, sha: &str) -> AddonEntry {
+        AddonEntry { git: url.to_string(), tag: None, branch: None, commit: Some(sha.into()), subdirectory: None }
+    }
+
+    #[test]
+    fn clone_bare_creates_bare_repo_from_local_path() {
+        let _g = test_helpers::CACHE_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let src = test_helpers::make_addons_repo("gut", "v1.0");
+        let dest_tmp = tempdir().unwrap();
+        let dest = dest_tmp.path().join("cloned.git");
+
+        let repo = clone_bare(&src.url(), &dest, "test").unwrap();
+
+        assert!(repo.is_bare());
+        assert!(dest.exists());
+    }
+
+    #[test]
+    fn resolve_ref_by_tag() {
+        let _g = test_helpers::CACHE_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let src = test_helpers::make_addons_repo("gut", "v1.0");
+        let dest = tempdir().unwrap().path().join("bare.git");
+        let repo = clone_bare(&src.url(), &dest, "test").unwrap();
+
+        let sha = resolve_ref("gut", &repo, &entry_tag(&src.url(), "v1.0")).unwrap();
+        assert_eq!(sha, src.commit_sha);
+    }
+
+    #[test]
+    fn resolve_ref_by_branch() {
+        let _g = test_helpers::CACHE_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let src = test_helpers::make_addons_repo("gut", "v1.0");
+        let dest = tempdir().unwrap().path().join("bare.git");
+        let repo = clone_bare(&src.url(), &dest, "test").unwrap();
+
+        let sha = resolve_ref("gut", &repo, &entry_branch(&src.url(), &src.default_branch)).unwrap();
+        assert_eq!(sha, src.commit_sha);
+    }
+
+    #[test]
+    fn resolve_ref_by_commit() {
+        let _g = test_helpers::CACHE_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let src = test_helpers::make_addons_repo("gut", "v1.0");
+        let dest = tempdir().unwrap().path().join("bare.git");
+        let repo = clone_bare(&src.url(), &dest, "test").unwrap();
+
+        let sha = resolve_ref("gut", &repo, &entry_commit(&src.url(), &src.commit_sha)).unwrap();
+        assert_eq!(sha, src.commit_sha);
+    }
+
+    #[test]
+    fn fetch_all_succeeds_on_existing_bare_repo() {
+        let _g = test_helpers::CACHE_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let src = test_helpers::make_addons_repo("gut", "v1.0");
+        let dest = tempdir().unwrap().path().join("bare.git");
+        let repo = clone_bare(&src.url(), &dest, "test").unwrap();
+
+        fetch_all(&repo, &src.url(), "test").unwrap();
+    }
+
+    #[test]
+    fn resolve_and_fetch_end_to_end() {
+        let _g = test_helpers::CACHE_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let src = test_helpers::make_addons_repo("gut", "v1.0");
+        let cache = tempdir().unwrap();
+        test_helpers::set_test_cache(&cache);
+
+        let sha = resolve_and_fetch("gut", &entry_tag(&src.url(), "v1.0")).unwrap();
+        assert_eq!(sha, src.commit_sha);
+
+        test_helpers::unset_test_cache();
+    }
+
+    #[test]
+    fn resolve_and_fetch_second_call_uses_fetch_path() {
+        let _g = test_helpers::CACHE_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let src = test_helpers::make_addons_repo("gut", "v1.0");
+        let cache = tempdir().unwrap();
+        test_helpers::set_test_cache(&cache);
+
+        let sha1 = resolve_and_fetch("gut", &entry_tag(&src.url(), "v1.0")).unwrap();
+        let sha2 = resolve_and_fetch("gut", &entry_tag(&src.url(), "v1.0")).unwrap();
+        assert_eq!(sha1, sha2);
+
+        test_helpers::unset_test_cache();
+    }
+}
+
 fn progress_bar(msg: &str) -> ProgressBar {
     let pb = ProgressBar::new(0);
     pb.set_style(
