@@ -1,10 +1,12 @@
 use anyhow::{Context, Result, bail};
 use clap::Parser;
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(name = "gdep", about = "Godot addon dependency manager")]
@@ -141,17 +143,20 @@ fn install() -> Result<()> {
             continue;
         }
 
+        let spinner = new_spinner(name);
         let repo_dir = cache_dir.join(url_to_key(&spec.url));
-        let repo = clone_or_open(&spec.url, &repo_dir)?;
+        let repo = clone_or_open(&spec.url, &repo_dir, &spinner)?;
 
         let sha = if let Some(locked) = locked {
             let sha = locked.commit.clone();
             // Only fetch if the pinned SHA is not already in the local cache
             if repo.find_commit(git2::Oid::from_str(&sha)?).is_err() {
+                spinner.set_message(format!("{name}: fetching"));
                 fetch_all(&repo, &spec.url)?;
             }
             sha
         } else {
+            spinner.set_message(format!("{name}: fetching"));
             fetch_all(&repo, &spec.url)?;
             resolve_ref(
                 &repo,
@@ -162,7 +167,7 @@ fn install() -> Result<()> {
             )?
         };
 
-        print!("{name}: installing... ");
+        spinner.set_message(format!("{name}: installing"));
         if addon_dir.exists() {
             fs::remove_dir_all(&addon_dir)?;
         }
@@ -180,7 +185,7 @@ fn install() -> Result<()> {
             .context("subdir is not a directory")?;
 
         copy_tree(&repo, &subtree, &addon_dir)?;
-        println!("done");
+        spinner.finish_with_message(format!("{name}: done"));
 
         lockfile.addons.insert(
             name.clone(),
@@ -245,17 +250,29 @@ fn dir_is_populated(dir: &Path) -> bool {
 
 // Opens an existing bare clone or creates a new one. Does NOT fetch — call
 // fetch_all separately when you need the latest refs.
-fn clone_or_open(url: &str, repo_dir: &Path) -> Result<git2::Repository> {
+fn clone_or_open(url: &str, repo_dir: &Path, spinner: &ProgressBar) -> Result<git2::Repository> {
     if repo_dir.exists() {
         git2::Repository::open_bare(repo_dir)
             .with_context(|| format!("failed to open cache for {url}"))
     } else {
-        println!("cloning {url}");
+        spinner.set_message(format!("{url}: cloning"));
         git2::build::RepoBuilder::new()
             .bare(true)
             .clone(url, repo_dir)
             .with_context(|| format!("failed to clone {url}"))
     }
+}
+
+fn new_spinner(name: &str) -> ProgressBar {
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(
+        ProgressStyle::default_spinner()
+            .template("{spinner} {msg}")
+            .unwrap(),
+    );
+    pb.enable_steady_tick(Duration::from_millis(80));
+    pb.set_message(format!("{name}: working"));
+    pb
 }
 
 fn fetch_all(repo: &git2::Repository, url: &str) -> Result<()> {

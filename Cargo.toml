@@ -8,5 +8,6 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
 git2 = { version = "0.21", default-features = false, features = ["https"] }
+indicatif = "0.17"
 serde = { version = "1", features = ["derive"] }
 toml = "1"
