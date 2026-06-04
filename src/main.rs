@@ -17,6 +17,8 @@ struct Cli {
 enum Command {
     /// Install all addons from gdep.toml
     Install,
+    /// Delete the local repo cache at ~/.cache/gdep/
+    Clean,
 }
 
 #[derive(Deserialize)]
@@ -52,7 +54,19 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Install => install(),
+        Command::Clean => clean(),
     }
+}
+
+fn clean() -> Result<()> {
+    let cache_dir = dirs::cache_dir()
+        .context("could not determine cache directory")?
+        .join("gdep");
+    if cache_dir.exists() {
+        fs::remove_dir_all(&cache_dir)?;
+    }
+    println!("cache cleared");
+    Ok(())
 }
 
 fn install() -> Result<()> {

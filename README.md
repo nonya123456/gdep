@@ -46,6 +46,12 @@ Then run:
 gdep install
 ```
 
+To wipe the local clone cache (forces a fresh clone on next install):
+
+```bash
+gdep clean
+```
+
 Each `[addons.<name>]` entry copies the contents of `subdir` from the source repo into `addons/<name>/` in your project. `subdir` is always required.
 
 Commit `gdep.toml` and `gdep.lock`. Add this to `.gitignore` to exclude managed addons:
