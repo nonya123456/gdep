@@ -61,8 +61,13 @@ fn install() -> Result<()> {
     let manifest: Manifest = toml::from_str(&manifest_str).context("failed to parse gdep.toml")?;
 
     for (name, spec) in &manifest.addons {
-        if spec.subdir.is_none() {
-            bail!("addon '{name}': subdir is required");
+        if spec.url.is_empty() {
+            bail!("addon '{name}': url must not be empty");
+        }
+        match spec.subdir.as_deref() {
+            None => bail!("addon '{name}': subdir is required"),
+            Some("") => bail!("addon '{name}': subdir must not be empty"),
+            _ => {}
         }
         let ref_count = [&spec.tag, &spec.branch, &spec.commit]
             .iter()
@@ -73,6 +78,10 @@ fn install() -> Result<()> {
         }
         if ref_count > 1 {
             bail!("addon '{name}': only one of tag, branch, or commit is allowed");
+        }
+        let rev = spec.tag.as_deref().or(spec.branch.as_deref()).or(spec.commit.as_deref()).unwrap();
+        if rev.is_empty() {
+            bail!("addon '{name}': tag/branch/commit value must not be empty");
         }
     }
 
