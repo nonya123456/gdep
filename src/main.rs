@@ -148,13 +148,14 @@ fn install() -> Result<()> {
             .get(name)
             .filter(|l| l.url == spec.url && l.subdir == subdir && l.rev == manifest_rev);
 
+        let spinner = new_spinner(name);
+
         // Fast path: manifest unchanged and addon directory has files — no network needed
         if locked.is_some() && dir_is_populated(&addon_dir) {
+            spinner.finish_and_clear();
             println!("{name}: up to date");
             continue;
         }
-
-        let spinner = new_spinner(name);
         let repo_dir = cache_dir.join(url_to_key(&spec.url));
         let repo = clone_or_open(&spec.url, &repo_dir, &spinner)?;
 

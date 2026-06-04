@@ -30,4 +30,11 @@ subdir = "addons/phantom-camera"
 cargo build
 cargo fmt
 cargo clippy -- -D warnings
+cargo test
 ```
+
+Always run `cargo test` before committing or releasing.
+
+## Dependency management
+
+- Always use `cargo add <crate>@<latest-version>` to add or upgrade dependencies — never edit version strings in `Cargo.toml` by hand. Look up the latest version with `cargo search <crate>` first.
