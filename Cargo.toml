@@ -1,6 +1,6 @@
 [package]
 name = "gdep"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 
 [dependencies]
@@ -8,7 +8,7 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 dirs = "6"
 git2 = { version = "0.21", default-features = false, features = ["https"] }
-indicatif = "0.17"
+indicatif = "0.18.4"
 serde = { version = "1", features = ["derive"] }
 toml = "1"
 
