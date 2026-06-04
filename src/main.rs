@@ -47,7 +47,7 @@ struct Lockfile {
 struct LockedAddon {
     url: String,
     #[serde(default)]
-    rev: String,    // original tag/branch/commit from manifest
+    rev: String, // original tag/branch/commit from manifest
     commit: String, // resolved full SHA
     subdir: String,
 }
@@ -60,10 +60,17 @@ fn main() -> Result<()> {
     }
 }
 
+fn cache_dir() -> Result<PathBuf> {
+    if let Ok(path) = std::env::var("GDEP_CACHE_DIR") {
+        return Ok(PathBuf::from(path));
+    }
+    dirs::cache_dir()
+        .context("could not determine cache directory")
+        .map(|p| p.join("gdep"))
+}
+
 fn clean() -> Result<()> {
-    let cache_dir = dirs::cache_dir()
-        .context("could not determine cache directory")?
-        .join("gdep");
+    let cache_dir = cache_dir()?;
     if cache_dir.exists() {
         fs::remove_dir_all(&cache_dir)?;
     }
@@ -95,7 +102,12 @@ fn install() -> Result<()> {
         if ref_count > 1 {
             bail!("addon '{name}': only one of tag, branch, or commit is allowed");
         }
-        let rev = spec.tag.as_deref().or(spec.branch.as_deref()).or(spec.commit.as_deref()).unwrap();
+        let rev = spec
+            .tag
+            .as_deref()
+            .or(spec.branch.as_deref())
+            .or(spec.commit.as_deref())
+            .unwrap();
         if rev.is_empty() {
             bail!("addon '{name}': tag/branch/commit value must not be empty");
         }
@@ -112,9 +124,7 @@ fn install() -> Result<()> {
         toml::from_str(&lock_str).context("failed to parse gdep.lock")?
     };
 
-    let cache_dir = dirs::cache_dir()
-        .context("could not determine cache directory")?
-        .join("gdep");
+    let cache_dir = cache_dir()?;
     fs::create_dir_all(&cache_dir)?;
 
     let mut names: Vec<&String> = manifest.addons.keys().collect();
@@ -133,9 +143,10 @@ fn install() -> Result<()> {
             .unwrap();
 
         // Lockfile entry is valid only if url, subdir, and ref all match the manifest
-        let locked = lockfile.addons.get(name).filter(|l| {
-            l.url == spec.url && l.subdir == subdir && l.rev == manifest_rev
-        });
+        let locked = lockfile
+            .addons
+            .get(name)
+            .filter(|l| l.url == spec.url && l.subdir == subdir && l.rev == manifest_rev);
 
         // Fast path: manifest unchanged and addon directory has files — no network needed
         if locked.is_some() && dir_is_populated(&addon_dir) {
@@ -338,7 +349,9 @@ fn copy_tree(repo: &git2::Repository, tree: &git2::Tree, dest: &Path) -> Result<
                 }
             }
             Some(kind) => {
-                eprintln!("warning: skipping '{name}' ({kind:?}) — only regular files and directories are supported");
+                eprintln!(
+                    "warning: skipping '{name}' ({kind:?}) — only regular files and directories are supported"
+                );
             }
             None => {}
         }
