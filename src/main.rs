@@ -197,7 +197,8 @@ fn install() -> Result<()> {
             .context("subdir is not a directory")?;
 
         copy_tree(&repo, &subtree, &addon_dir)?;
-        spinner.finish_with_message(format!("{name}: done"));
+        spinner.finish_and_clear();
+        println!("{name}: done");
 
         lockfile.addons.insert(
             name.clone(),
