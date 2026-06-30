@@ -148,6 +148,30 @@ fn test_install_missing_subdir() {
 }
 
 #[test]
+fn test_install_rejects_traversal_name() {
+    let project = tempfile::tempdir().unwrap();
+    let cache = tempfile::tempdir().unwrap();
+
+    fs::write(
+        project.path().join("gdep.toml"),
+        "[addons.\"../escape\"]\nurl = \"file:///tmp/fake\"\ntag = \"v1.0\"\nsubdir = \"addons/x\"\n",
+    )
+    .unwrap();
+
+    Command::cargo_bin("gdep")
+        .unwrap()
+        .current_dir(project.path())
+        .env("GDEP_CACHE_DIR", cache.path())
+        .arg("install")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("must not contain"));
+
+    // Nothing was created outside the project directory.
+    assert!(!project.path().parent().unwrap().join("escape").exists());
+}
+
+#[test]
 fn test_install_removes_stale() {
     let (_repo, url) = make_local_repo("addons/myaddon");
     let project = tempfile::tempdir().unwrap();

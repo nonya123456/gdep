@@ -32,6 +32,11 @@ impl AddonSpec {
 /// Validate one addon entry against the design rules. Returns the resolved
 /// `subdir` so callers don't have to re-unwrap it.
 pub fn validate<'a>(name: &str, spec: &'a AddonSpec) -> Result<&'a str> {
+    // The name becomes a path component under addons/. Reject anything that
+    // could let it escape that directory and write or delete elsewhere.
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.contains("..") {
+        bail!("addon '{name}': name must not contain '/', '\\', or '..'");
+    }
     if spec.url.is_empty() {
         bail!("addon '{name}': url must not be empty");
     }
@@ -98,6 +103,16 @@ mod tests {
         let mut s = spec(Some("v1"), None, None);
         s.subdir = None;
         assert!(validate("ok", &s).is_err());
+    }
+
+    #[test]
+    fn rejects_traversal_names() {
+        for name in ["..", "../evil", "a/b", "a\\b", "..\\x", ""] {
+            assert!(
+                validate(name, &spec(Some("v1"), None, None)).is_err(),
+                "name {name:?} should be rejected"
+            );
+        }
     }
 
     #[test]
