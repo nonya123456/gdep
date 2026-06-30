@@ -147,6 +147,48 @@ fn test_install_missing_subdir() {
         .stderr(predicate::str::contains("subdir is required"));
 }
 
+#[cfg(unix)]
+#[test]
+fn test_install_preserves_symlink() {
+    let repo_dir = tempfile::tempdir().unwrap();
+    let path = repo_dir.path();
+    let subdir = "addons/myaddon";
+
+    fs::create_dir_all(path.join(subdir)).unwrap();
+    fs::write(path.join(subdir).join("real.txt"), "hi").unwrap();
+    std::os::unix::fs::symlink("real.txt", path.join(subdir).join("link.txt")).unwrap();
+
+    git(path, &["init"]);
+    git(path, &["add", "."]);
+    git(path, &["commit", "-m", "init"]);
+    git(path, &["tag", "v1.0"]);
+    let url = format!("file://{}", path.display());
+
+    let project = tempfile::tempdir().unwrap();
+    let cache = tempfile::tempdir().unwrap();
+    fs::write(
+        project.path().join("gdep.toml"),
+        format!("[addons.myaddon]\nurl = \"{url}\"\ntag = \"v1.0\"\nsubdir = \"{subdir}\"\n"),
+    )
+    .unwrap();
+
+    Command::cargo_bin("gdep")
+        .unwrap()
+        .current_dir(project.path())
+        .env("GDEP_CACHE_DIR", cache.path())
+        .arg("install")
+        .assert()
+        .success();
+
+    let link = project.path().join("addons/myaddon/link.txt");
+    let meta = fs::symlink_metadata(&link).unwrap();
+    assert!(
+        meta.file_type().is_symlink(),
+        "link.txt should be installed as a symlink"
+    );
+    assert_eq!(fs::read_link(&link).unwrap().to_str().unwrap(), "real.txt");
+}
+
 #[test]
 fn test_install_rejects_traversal_name() {
     let project = tempfile::tempdir().unwrap();

@@ -80,6 +80,27 @@ pub fn copy_tree(repo: &git2::Repository, tree: &git2::Tree, dest: &Path) -> Res
                 let subtree = repo.find_tree(entry.id())?;
                 copy_tree(repo, &subtree, &dest_path)?;
             }
+            // A symlink is stored as a blob whose content is the target path.
+            // Recreate it as a symlink rather than writing the target as a
+            // regular file's contents.
+            Some(git2::ObjectType::Blob) if entry.filemode() == 0o120000 => {
+                let blob = repo.find_blob(entry.id())?;
+                #[cfg(unix)]
+                {
+                    use std::ffi::OsStr;
+                    use std::os::unix::ffi::OsStrExt;
+                    let target = OsStr::from_bytes(blob.content());
+                    std::os::unix::fs::symlink(target, &dest_path).with_context(|| {
+                        format!("failed to create symlink {}", dest_path.display())
+                    })?;
+                }
+                #[cfg(not(unix))]
+                {
+                    eprintln!(
+                        "warning: skipping symlink '{name}' — symlinks are not supported on this platform"
+                    );
+                }
+            }
             Some(git2::ObjectType::Blob) => {
                 let blob = repo.find_blob(entry.id())?;
                 fs::write(&dest_path, blob.content())?;
