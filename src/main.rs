@@ -3,7 +3,7 @@ use clap::Parser;
 use gdep::commands;
 
 #[derive(Parser)]
-#[command(name = "gdep", about = "Godot addon dependency manager")]
+#[command(name = "gdep", version, about = "Godot addon dependency manager")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
