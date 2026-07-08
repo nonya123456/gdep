@@ -5,7 +5,7 @@ A minimal addon manager for Godot projects. Write a `gdep.toml`, run `gdep insta
 ## Install
 
 ```bash
-cargo install --git https://codeberg.org/desertmouse/gdep --tag v0.2.4
+cargo install --git https://codeberg.org/desertmouse/gdep
 ```
 
 Or from source:
@@ -67,7 +67,3 @@ addons/*
 2. Bare-clones repos into `~/.cache/gdep/` and resolves tags/branches/commits to exact SHAs.
 3. Pins SHAs to `gdep.lock` — subsequent installs use the locked SHA for reproducibility.
 4. Copies `subdir` contents into `addons/<name>/`. Skips if already at the correct commit.
-
-## License
-
-Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) at your option.
