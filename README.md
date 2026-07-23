@@ -5,7 +5,7 @@ A minimal addon manager for Godot projects. Write a `gdep.toml`, run `gdep insta
 ## Install
 
 ```bash
-cargo install --git https://codeberg.org/desertmouse/gdep
+cargo install --git https://github.com/nonya123456/gdep
 ```
 
 Or from source:
